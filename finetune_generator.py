@@ -8,7 +8,9 @@ import rdkit
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem
 
-import math, random, sys
+import math
+import random
+import sys
 import numpy as np
 import argparse
 import os
@@ -21,12 +23,17 @@ from chemprop.data import MoleculeDataset, MoleculeDataLoader
 from chemprop.data.utils import get_data, get_data_from_smiles
 from chemprop.utils import load_args, load_checkpoint, load_scalers
 
-param_norm = lambda m: math.sqrt(sum([p.norm().item() ** 2 for p in m.parameters()]))
-grad_norm = lambda m: math.sqrt(sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
+
+def param_norm(m): return math.sqrt(
+    sum([p.norm().item() ** 2 for p in m.parameters()]))
+
+
+def grad_norm(m): return math.sqrt(
+    sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
 
 
 class Chemprop(object):
-    
+
     def __init__(self, checkpoint_dir):
         self.features_generator = ['rdkit_2d_normalized']
         self.checkpoints, self.scalers, self.features_scalers = [], [], []
@@ -46,10 +53,12 @@ class Chemprop(object):
             skip_invalid_smiles=False,
             features_generator=self.features_generator
         )
-        valid_indices = [i for i in range(len(test_data)) if test_data[i].mol[0] is not None]
+        valid_indices = [i for i in range(
+            len(test_data)) if test_data[i].mol[0] is not None]
         full_data = test_data
         test_data = MoleculeDataset([test_data[i] for i in valid_indices])
-        test_data_loader = MoleculeDataLoader(dataset=test_data, batch_size=batch_size)
+        test_data_loader = MoleculeDataLoader(
+            dataset=test_data, batch_size=batch_size)
 
         sum_preds = np.zeros((len(test_data), 1))
         for model, scaler, features_scaler in zip(self.checkpoints, self.scalers, self.features_scalers):
@@ -77,7 +86,7 @@ class Chemprop(object):
 
 
 if __name__ == "__main__":
-    lg = rdkit.RDLogger.logger() 
+    lg = rdkit.RDLogger.logger()
     lg.setLevel(rdkit.RDLogger.CRITICAL)
 
     parser = argparse.ArgumentParser()
@@ -118,15 +127,16 @@ if __name__ == "__main__":
     with open(args.train) as f:
         train_smiles = [line.strip("\r\n ") for line in f]
 
-    vocab = [x.strip("\r\n ").split() for x in open(args.vocab)] 
+    vocab = [x.strip("\r\n ").split() for x in open(args.vocab)]
     args.vocab = PairVocab(vocab)
 
     score_func = Chemprop(args.chemprop_model)
     good_smiles = train_smiles
     train_mol = [Chem.MolFromSmiles(s) for s in train_smiles]
-    train_fps = [AllChem.GetMorganFingerprintAsBitVect(x, 2, 2048) for x in train_mol]
+    train_fps = [AllChem.GetMorganFingerprintAsBitVect(
+        x, 2, 2048) for x in train_mol]
 
-    model = HierVAE(args).cuda()
+    model = HierVAE(args).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     print('Loading from checkpoint ' + args.generative_model)
@@ -137,22 +147,27 @@ if __name__ == "__main__":
     for epoch in range(args.epoch):
         good_smiles = sorted(set(good_smiles))
         random.shuffle(good_smiles)
-        dataset = hgraph.MoleculeDataset(good_smiles, args.vocab, args.atom_vocab, args.batch_size)
+        dataset = hgraph.MoleculeDataset(
+            good_smiles, args.vocab, args.atom_vocab, args.batch_size)
 
         print(f'Epoch {epoch} training...')
         for _ in range(args.inner_epoch):
             meters = np.zeros(6)
-            dataloader = DataLoader(dataset, batch_size=1, collate_fn=lambda x:x[0], shuffle=True, num_workers=16)
+            dataloader = DataLoader(
+                dataset, batch_size=1, collate_fn=lambda x: x[0], shuffle=True, num_workers=16)
             for batch in tqdm(dataloader):
                 model.zero_grad()
                 loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
                 optimizer.step()
-                meters = meters + np.array([kl_div, loss.item(), wacc * 100, iacc * 100, tacc * 100, sacc * 100])
+                meters = meters + \
+                    np.array([kl_div, loss.item(), wacc * 100,
+                              iacc * 100, tacc * 100, sacc * 100])
 
             meters /= len(dataset)
-            print("Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
+            print("Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (
+                beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
 
         ckpt = (model.state_dict(), optimizer.state_dict(), epoch, beta)
         torch.save(ckpt, os.path.join(args.save_dir, f"model.ckpt.{epoch}"))
@@ -166,7 +181,8 @@ if __name__ == "__main__":
 
         print(f'Epoch {epoch} filtering...')
         scores = score_func.predict(decoded_smiles)
-        outputs = [(s,p) for s,p in zip(decoded_smiles, scores) if p >= args.threshold]
+        outputs = [(s, p) for s, p in zip(
+            decoded_smiles, scores) if p >= args.threshold]
         print(f'Discovered {len(outputs)} active molecules')
 
         novel_entries = []
