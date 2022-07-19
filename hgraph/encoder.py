@@ -8,6 +8,7 @@ from hgraph.rnn import GRU, LSTM
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 class MPNEncoder(nn.Module):
 
     def __init__(self, rnn_type, input_size, node_fdim, hidden_size, depth, dropout):
@@ -15,6 +16,8 @@ class MPNEncoder(nn.Module):
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.depth = depth
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
         self.W_o = nn.Sequential(
             nn.Linear(node_fdim + hidden_size, hidden_size),
             nn.ReLU(),
@@ -46,7 +49,8 @@ class HierMPNEncoder(nn.Module):
 
     def __init__(self, vocab, avocab, rnn_type, embed_size, hidden_size, depthT, depthG, dropout):
         super(HierMPNEncoder, self).__init__()
-
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
         self.vocab = vocab
         self.hidden_size = hidden_size
         self.dropout = dropout
@@ -72,10 +76,10 @@ class HierMPNEncoder(nn.Module):
             nn.Dropout(dropout)
         )
 
-        self.E_a = torch.eye(atom_size).to(device)
-        self.E_b = torch.eye(len(MolGraph.BOND_LIST)).to(device)
-        self.E_apos = torch.eye(MolGraph.MAX_POS).to(device)
-        self.E_pos = torch.eye(MolGraph.MAX_POS).to(device)
+        self.E_a = torch.eye(atom_size).to(self.device)
+        self.E_b = torch.eye(len(MolGraph.BOND_LIST)).to(self.device)
+        self.E_apos = torch.eye(MolGraph.MAX_POS).to(self.device)
+        self.E_pos = torch.eye(MolGraph.MAX_POS).to(self.device)
 
         self.W_root = nn.Sequential(
             nn.Linear(hidden_size * 2, hidden_size),
