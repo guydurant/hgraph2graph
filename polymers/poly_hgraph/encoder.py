@@ -6,6 +6,7 @@ from poly_hgraph.nnutils import *
 from poly_hgraph.mol_graph import MolGraph
 from poly_hgraph.rnn import GRU, LSTM
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class MPNEncoder(nn.Module):
 

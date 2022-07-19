@@ -23,6 +23,7 @@ from chemprop.data import MoleculeDataset, MoleculeDataLoader
 from chemprop.data.utils import get_data, get_data_from_smiles
 from chemprop.utils import load_args, load_checkpoint, load_scalers
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def param_norm(m): return math.sqrt(
     sum([p.norm().item() ** 2 for p in m.parameters()]))

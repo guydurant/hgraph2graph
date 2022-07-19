@@ -7,6 +7,7 @@ from poly_hgraph.encoder import IncHierMPNEncoder
 from poly_hgraph.mol_graph import MolGraph
 from poly_hgraph.inc_graph import IncTree, IncGraph
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class HTuple():
     def __init__(self, node=None, mess=None, vmask=None, emask=None):

@@ -6,6 +6,7 @@ from hgraph.nnutils import *
 from hgraph.mol_graph import MolGraph
 from hgraph.rnn import GRU, LSTM
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class MPNEncoder(nn.Module):
 
@@ -45,6 +46,7 @@ class HierMPNEncoder(nn.Module):
 
     def __init__(self, vocab, avocab, rnn_type, embed_size, hidden_size, depthT, depthG, dropout):
         super(HierMPNEncoder, self).__init__()
+
         self.vocab = vocab
         self.hidden_size = hidden_size
         self.dropout = dropout

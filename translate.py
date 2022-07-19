@@ -16,6 +16,8 @@ import rdkit
 lg = rdkit.RDLogger.logger()
 lg.setLevel(rdkit.RDLogger.CRITICAL)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', required=True)
 parser.add_argument('--vocab', required=True)

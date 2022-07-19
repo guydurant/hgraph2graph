@@ -7,6 +7,8 @@ from poly_hgraph.encoder import HierMPNEncoder
 from poly_hgraph.decoder import HierMPNDecoder
 from poly_hgraph.nnutils import *
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def make_cuda(tensors):
     tree_tensors, graph_tensors = tensors

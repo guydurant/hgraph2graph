@@ -5,6 +5,7 @@ from hgraph.mol_graph import MolGraph
 from hgraph.chemutils import *
 from collections import defaultdict
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class IncBase(object):
 
