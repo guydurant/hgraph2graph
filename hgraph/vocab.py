@@ -3,6 +3,7 @@ import rdkit.Chem as Chem
 import copy
 import torch
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Vocab(object):
 
@@ -36,7 +37,6 @@ class PairVocab(object):
             hid = self.hmap[h]
             idx = self.vmap[(h, s)]
             self.mask[hid, idx] = 1000.0
-
         if cuda:
             self.mask = self.mask.to(device)
         self.mask = self.mask - 1000.0
