@@ -4,15 +4,18 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 
-import math, random, sys
+import math
+import random
+import sys
 import numpy as np
 import argparse
 
 from poly_hgraph import *
 import rdkit
 
-lg = rdkit.RDLogger.logger() 
+lg = rdkit.RDLogger.logger()
 lg.setLevel(rdkit.RDLogger.CRITICAL)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--train', required=True)
@@ -44,11 +47,11 @@ parser.add_argument('--save_iter', type=int, default=-1)
 args = parser.parse_args()
 print(args)
 
-vocab = [x.strip("\r\n ").split() for x in open(args.vocab)] 
+vocab = [x.strip("\r\n ").split() for x in open(args.vocab)]
 MolGraph.load_fragments([x[0] for x in vocab if eval(x[-1])])
-args.vocab = PairVocab([(x,y) for x,y,_ in vocab])
+args.vocab = PairVocab([(x, y) for x, y, _ in vocab])
 
-model = HierVAE(args).cuda()
+model = HierVAE(args).to(device)
 
 for param in model.parameters():
     if param.dim() == 1:
@@ -57,15 +60,23 @@ for param in model.parameters():
         nn.init.xavier_normal_(param)
 
 if args.load_epoch >= 0:
-    model.load_state_dict(torch.load(args.save_dir + "/model." + str(args.load_epoch)))
+    model.load_state_dict(torch.load(
+        args.save_dir + "/model." + str(args.load_epoch)))
 
-print("Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,))
+print("Model #Params: %dK" %
+      (sum([x.nelement() for x in model.parameters()]) / 1000,))
 
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = lr_scheduler.ExponentialLR(optimizer, args.anneal_rate)
 
-param_norm = lambda m: math.sqrt(sum([p.norm().item() ** 2 for p in m.parameters()]))
-grad_norm = lambda m: math.sqrt(sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
+
+def param_norm(m): return math.sqrt(
+    sum([p.norm().item() ** 2 for p in m.parameters()]))
+
+
+def grad_norm(m): return math.sqrt(
+    sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
+
 
 total_step = 0
 beta = args.beta
@@ -83,17 +94,21 @@ for epoch in range(args.load_epoch + 1, args.epoch):
         nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
         optimizer.step()
 
-        meters = meters + np.array([kl_div, loss.item(), wacc * 100, iacc * 100, tacc * 100, sacc * 100])
+        meters = meters + \
+            np.array([kl_div, loss.item(), wacc * 100,
+                      iacc * 100, tacc * 100, sacc * 100])
 
         if total_step % args.print_iter == 0:
             meters /= args.print_iter
-            print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
+            print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (
+                total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
             sys.stdout.flush()
             meters *= 0
-        
+
         if args.save_iter >= 0 and total_step % args.save_iter == 0:
             n_iter = total_step // args.save_iter - 1
-            torch.save(model.state_dict(), args.save_dir + "/model." + str(n_iter))
+            torch.save(model.state_dict(), args.save_dir +
+                       "/model." + str(n_iter))
             scheduler.step()
             print("learning rate: %.6f" % scheduler.get_lr()[0])
 
